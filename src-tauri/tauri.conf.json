@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "glowy-legion",
+  "productName": "LegionGlow",
   "version": "0.1.0",
   "identifier": "com.shtam.glowy-legion",
   "build": {
@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "glowy-legion",
-        "width": 800,
-        "height": 600
+        "title": "LegionGlow",
+        "width": 1120,
+        "height": 760
       }
     ],
     "security": {

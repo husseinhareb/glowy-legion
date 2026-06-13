@@ -1,0 +1,134 @@
+{
+  "name": "assets/940bea434eee4037a2df27de78beb29d",
+  "designSystem": {
+    "displayName": "Stark Agency System",
+    "styleGuidelines": "## Brand & Style\n\nThe design system is rooted in **Neo-Brutalist Minimalism**. It targets a high-end demographic of tech founders and creative leaders who value clarity, directness, and architectural precision. The aesthetic is unapologetically bold, favoring raw structural elements over decorative flourishes. \n\nThe emotional response should be one of \"Confidence through Constraint.\" By using a restricted palette and heavy-weight typography, the UI signals authority and modern technical proficiency. Key characteristics include high-contrast boundaries, oversized headers, and a total absence of traditional gradients or soft blurs.\n\n## Layout & Spacing\n\nThe layout follows a **Rigid Grid** philosophy. Elements are locked to a 12-column grid on desktop and a 4-column grid on mobile. \n\n- **Gutters:** 24px wide, often visualized through vertical borders or hard dividers.\n- **Margins:** Large outer margins (64px+) are used to \"frame\" the content, making the software feel like a curated gallery or an architectural blueprint.\n- **Rhythm:** All spacing (padding, gaps) must be multiples of 8px. Use 3px borders for primary containers and 1px borders for internal dividers.\n\n## Elevation & Depth\n\nDepth is conveyed through **Hard Shadows** and **Offset Layers** rather than Z-axis blurs.\n\n- **No Ambient Shadows:** Do not use soft, diffused shadows.\n- **Offset Shadows:** To indicate a raised element (like a button or a card), use a solid black rectangle offset by 4px to 8px to the bottom-right.\n- **Tonal Stacking:** Use the #F4F4F5 neutral color to indicate \"inset\" or \"background\" areas, while the #FFFFFF white surfaces represent the top-most interaction layer.\n\n## Components\n\n- **Buttons:** Primary buttons are solid black with white text. On hover, they shift to show an **Offset Hard Shadow** (8px offset) or swap colors to the Accent Green.\n- **Input Fields:** Thick 2px black borders. Labels are placed inside the border at the top-left using the `label-caps` style.\n- **Cards:** White background with a 2px black border. Content is padded by 32px. Cards do not use shadows unless they are interactive (hover state).\n- **Chips/Badges:** Small rectangular boxes with a 1px border. No rounding.\n- **Lists:** Separated by horizontal 1px lines that span the full width of the container. Use a \"hover state\" that fills the entire row with the Neutral color.\n- **Checkboxes:** Square boxes with a thick black border. When checked, they are filled with the Accent Green and a black checkmark.",
+    "theme": {
+      "colorMode": "LIGHT",
+      "font": "INTER",
+      "customColor": "#000000",
+      "headlineFont": "INTER",
+      "bodyFont": "INTER",
+      "labelFont": "INTER",
+      "namedColors": {
+        "accent-green": "#00FF41",
+        "background": "#f9f9fa",
+        "border-main": "#000000",
+        "error": "#ba1a1a",
+        "error_container": "#ffdad6",
+        "inverse_on_surface": "#f0f1f2",
+        "inverse_primary": "#c6c6c6",
+        "inverse_surface": "#2f3132",
+        "on_background": "#1a1c1d",
+        "on_error": "#ffffff",
+        "on_error_container": "#93000a",
+        "on_primary": "#ffffff",
+        "on_primary_container": "#848484",
+        "on_primary_fixed": "#1b1b1b",
+        "on_primary_fixed_variant": "#474747",
+        "on_secondary": "#ffffff",
+        "on_secondary_container": "#616363",
+        "on_secondary_fixed": "#1a1c1c",
+        "on_secondary_fixed_variant": "#454747",
+        "on_surface": "#1a1c1d",
+        "on_surface_variant": "#4c4546",
+        "on_tertiary": "#ffffff",
+        "on_tertiary_container": "#848484",
+        "on_tertiary_fixed": "#1b1b1b",
+        "on_tertiary_fixed_variant": "#474747",
+        "outline": "#7e7576",
+        "outline_variant": "#cfc4c5",
+        "primary": "#000000",
+        "primary_container": "#1b1b1b",
+        "primary_fixed": "#e2e2e2",
+        "primary_fixed_dim": "#c6c6c6",
+        "secondary": "#5d5f5f",
+        "secondary_container": "#dfe0e0",
+        "secondary_fixed": "#e2e2e2",
+        "secondary_fixed_dim": "#c6c6c7",
+        "surface": "#f9f9fa",
+        "surface-muted": "#F4F4F5",
+        "surface_bright": "#f9f9fa",
+        "surface_container": "#eeeeef",
+        "surface_container_high": "#e8e8e9",
+        "surface_container_highest": "#e2e2e3",
+        "surface_container_low": "#f3f3f4",
+        "surface_container_lowest": "#ffffff",
+        "surface_dim": "#dadadb",
+        "surface_tint": "#5e5e5e",
+        "surface_variant": "#e2e2e3",
+        "tertiary": "#000000",
+        "tertiary_container": "#1b1b1b",
+        "tertiary_fixed": "#e2e2e2",
+        "tertiary_fixed_dim": "#c6c6c6"
+      },
+      "designMd": "---\nname: Stark Agency System\ncolors:\n  surface: '#f9f9fa'\n  surface-dim: '#dadadb'\n  surface-bright: '#f9f9fa'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#f3f3f4'\n  surface-container: '#eeeeef'\n  surface-container-high: '#e8e8e9'\n  surface-container-highest: '#e2e2e3'\n  on-surface: '#1a1c1d'\n  on-surface-variant: '#4c4546'\n  inverse-surface: '#2f3132'\n  inverse-on-surface: '#f0f1f2'\n  outline: '#7e7576'\n  outline-variant: '#cfc4c5'\n  surface-tint: '#5e5e5e'\n  primary: '#000000'\n  on-primary: '#ffffff'\n  primary-container: '#1b1b1b'\n  on-primary-container: '#848484'\n  inverse-primary: '#c6c6c6'\n  secondary: '#5d5f5f'\n  on-secondary: '#ffffff'\n  secondary-container: '#dfe0e0'\n  on-secondary-container: '#616363'\n  tertiary: '#000000'\n  on-tertiary: '#ffffff'\n  tertiary-container: '#1b1b1b'\n  on-tertiary-container: '#848484'\n  error: '#ba1a1a'\n  on-error: '#ffffff'\n  error-container: '#ffdad6'\n  on-error-container: '#93000a'\n  primary-fixed: '#e2e2e2'\n  primary-fixed-dim: '#c6c6c6'\n  on-primary-fixed: '#1b1b1b'\n  on-primary-fixed-variant: '#474747'\n  secondary-fixed: '#e2e2e2'\n  secondary-fixed-dim: '#c6c6c7'\n  on-secondary-fixed: '#1a1c1c'\n  on-secondary-fixed-variant: '#454747'\n  tertiary-fixed: '#e2e2e2'\n  tertiary-fixed-dim: '#c6c6c6'\n  on-tertiary-fixed: '#1b1b1b'\n  on-tertiary-fixed-variant: '#474747'\n  background: '#f9f9fa'\n  on-background: '#1a1c1d'\n  surface-variant: '#e2e2e3'\n  accent-green: '#00FF41'\n  border-main: '#000000'\n  surface-muted: '#F4F4F5'\ntypography:\n  display-xl:\n    fontFamily: Inter\n    fontSize: 120px\n    fontWeight: '800'\n    lineHeight: 110px\n    letterSpacing: -0.04em\n  headline-lg:\n    fontFamily: Inter\n    fontSize: 64px\n    fontWeight: '800'\n    lineHeight: 72px\n    letterSpacing: -0.03em\n  headline-lg-mobile:\n    fontFamily: Inter\n    fontSize: 40px\n    fontWeight: '800'\n    lineHeight: 44px\n    letterSpacing: -0.02em\n  headline-md:\n    fontFamily: Inter\n    fontSize: 32px\n    fontWeight: '700'\n    lineHeight: 40px\n    letterSpacing: -0.01em\n  body-lg:\n    fontFamily: Inter\n    fontSize: 18px\n    fontWeight: '400'\n    lineHeight: 28px\n  body-md:\n    fontFamily: Inter\n    fontSize: 16px\n    fontWeight: '400'\n    lineHeight: 24px\n  label-caps:\n    fontFamily: Inter\n    fontSize: 12px\n    fontWeight: '700'\n    lineHeight: 16px\n    letterSpacing: 0.1em\nspacing:\n  base: 8px\n  gutter: 24px\n  margin-desktop: 64px\n  margin-mobile: 20px\n  border-width-thick: 3px\n  border-width-thin: 1px\n---\n\n## Brand & Style\n\nThe design system is rooted in **Neo-Brutalist Minimalism**. It targets a high-end demographic of tech founders and creative leaders who value clarity, directness, and architectural precision. The aesthetic is unapologetically bold, favoring raw structural elements over decorative flourishes. \n\nThe emotional response should be one of \"Confidence through Constraint.\" By using a restricted palette and heavy-weight typography, the UI signals authority and modern technical proficiency. Key characteristics include high-contrast boundaries, oversized headers, and a total absence of traditional gradients or soft blurs.\n\n## Colors\n\nThe palette is dominated by a binary relationship between **Absolute Black** and **Stark White**. This high-contrast foundation ensures maximum legibility and a striking visual impact. \n\n- **Primary & Secondary:** Used to create a reversible UI where \"Dark Mode\" is simply the inversion of the layout.\n- **Neutral:** Used sparingly for background fills in complex data views or secondary containers to prevent visual fatigue.\n- **Accent Green:** A high-vibrancy \"Electric Green\" is reserved exclusively for primary calls to action, success states, and critical brand moments. It acts as a digital highlighter against the monochrome canvas.\n\n## Typography\n\nThis design system utilizes **Inter** exclusively to maintain a systematic, utilitarian feel. The hierarchy is driven by extreme scale rather than font variety.\n\n- **Display & Headlines:** Set in Extra Bold (800) with tight tracking. Headlines should feel \"heavy\" and occupy significant screen real estate.\n- **Body Text:** Standard weights (400) with generous line-height to maintain readability against the high-contrast background.\n- **Labels:** Small, uppercase, and bold. Used for metadata and overlines to provide a technical, structured feel.\n\n## Layout & Spacing\n\nThe layout follows a **Rigid Grid** philosophy. Elements are locked to a 12-column grid on desktop and a 4-column grid on mobile. \n\n- **Gutters:** 24px wide, often visualized through vertical borders or hard dividers.\n- **Margins:** Large outer margins (64px+) are used to \"frame\" the content, making the software feel like a curated gallery or an architectural blueprint.\n- **Rhythm:** All spacing (padding, gaps) must be multiples of 8px. Use 3px borders for primary containers and 1px borders for internal dividers.\n\n## Elevation & Depth\n\nDepth is conveyed through **Hard Shadows** and **Offset Layers** rather than Z-axis blurs.\n\n- **No Ambient Shadows:** Do not use soft, diffused shadows.\n- **Offset Shadows:** To indicate a raised element (like a button or a card), use a solid black rectangle offset by 4px to 8px to the bottom-right.\n- **Tonal Stacking:** Use the #F4F4F5 neutral color to indicate \"inset\" or \"background\" areas, while the #FFFFFF white surfaces represent the top-most interaction layer.\n\n## Shapes\n\nThe shape language is strictly **Sharp (0px)**. \n\nEvery UI component\u2014buttons, input fields, cards, and images\u2014must have square corners. This reinforces the \"Brutalist\" architectural theme. The only exception to this rule is for specific iconography or \"status pips\" which may be circular to provide a necessary visual break from the grid.\n\n## Components\n\n- **Buttons:** Primary buttons are solid black with white text. On hover, they shift to show an **Offset Hard Shadow** (8px offset) or swap colors to the Accent Green.\n- **Input Fields:** Thick 2px black borders. Labels are placed inside the border at the top-left using the `label-caps` style.\n- **Cards:** White background with a 2px black border. Content is padded by 32px. Cards do not use shadows unless they are interactive (hover state).\n- **Chips/Badges:** Small rectangular boxes with a 1px border. No rounding.\n- **Lists:** Separated by horizontal 1px lines that span the full width of the container. Use a \"hover state\" that fills the entire row with the Neutral color.\n- **Checkboxes:** Square boxes with a thick black border. When checked, they are filled with the Accent Green and a black checkmark.",
+      "colorVariant": "FIDELITY",
+      "overridePrimaryColor": "#000000",
+      "overrideSecondaryColor": "#ffffff",
+      "overrideNeutralColor": "#f4f4f5",
+      "spacingScale": 2,
+      "typography": {
+        "body-lg": {
+          "fontFamily": "Inter",
+          "fontSize": "18px",
+          "fontWeight": "400",
+          "lineHeight": "28px"
+        },
+        "body-md": {
+          "fontFamily": "Inter",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "lineHeight": "24px"
+        },
+        "display-xl": {
+          "fontFamily": "Inter",
+          "fontSize": "120px",
+          "fontWeight": "800",
+          "lineHeight": "110px",
+          "letterSpacing": "-0.04em"
+        },
+        "headline-lg": {
+          "fontFamily": "Inter",
+          "fontSize": "64px",
+          "fontWeight": "800",
+          "lineHeight": "72px",
+          "letterSpacing": "-0.03em"
+        },
+        "headline-lg-mobile": {
+          "fontFamily": "Inter",
+          "fontSize": "40px",
+          "fontWeight": "800",
+          "lineHeight": "44px",
+          "letterSpacing": "-0.02em"
+        },
+        "headline-md": {
+          "fontFamily": "Inter",
+          "fontSize": "32px",
+          "fontWeight": "700",
+          "lineHeight": "40px",
+          "letterSpacing": "-0.01em"
+        },
+        "label-caps": {
+          "fontFamily": "Inter",
+          "fontSize": "12px",
+          "fontWeight": "700",
+          "lineHeight": "16px",
+          "letterSpacing": "0.1em"
+        }
+      },
+      "spacing": {
+        "base": "8px",
+        "border-width-thick": "3px",
+        "border-width-thin": "1px",
+        "gutter": "24px",
+        "margin-desktop": "64px",
+        "margin-mobile": "20px"
+      },
+      "headlineFontFamily": "Inter",
+      "bodyFontFamily": "Inter",
+      "labelFontFamily": "Inter"
+    }
+  },
+  "version": "1"
+}

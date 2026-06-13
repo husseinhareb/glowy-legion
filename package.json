@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:mock": "LEGIONGLOW_BACKEND=mock tauri",
+    "tauri:dry-run": "LEGIONGLOW_BACKEND=lenovo-hid-dry-run tauri",
+    "tauri:real": "LEGIONGLOW_BACKEND=lenovo-hid tauri"
   },
   "dependencies": {
     "react": "^19.1.0",

@@ -1,0 +1,37 @@
+:root {
+  color-scheme: dark;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 400;
+  color: #ddd8f2;
+  background: #070510;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --bg: #070510;
+  --surface: #0d0b1a;
+  --surface-strong: #120f24;
+  --surface-muted: #090710;
+  --border: #201c38;
+  --border-soft: #140f28;
+  --text: #ddd8f2;
+  --text-muted: #524e70;
+
+  --accent: #7c5cfc;
+  --accent-bright: #a080ff;
+  --accent-dim: rgba(124, 92, 252, 0.10);
+  --accent-glow: rgba(124, 92, 252, 0.24);
+
+  --red: #f04060;
+  --green: #20e880;
+  --yellow: #f0c840;
+  --teal: #20cce0;
+
+  --font-display: 'Chakra Petch', monospace;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  --shadow: 0 8px 40px rgba(0, 0, 0, 0.7);
+}
