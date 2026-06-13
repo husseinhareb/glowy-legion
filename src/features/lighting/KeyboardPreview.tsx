@@ -10,7 +10,6 @@ import { rgbToCss } from "../../shared/utils/color";
 
 const BOARD_WIDTH = 1452;
 const BOARD_HEIGHT = 474;
-const KEY_COUNT_FOR_ZONE_LAYOUT = 4;
 
 interface PreviewKey {
   id: string;
@@ -161,12 +160,21 @@ const KEYS: PreviewKey[] = [
 
 interface KeyboardPreviewProps {
   state: KeyboardState;
+  /** Number of paintable segments (lamps). Required for `onPaintSegment`. */
+  segmentCount?: number;
+  /** When set, keys become clickable and paint their segment on click. */
+  onPaintSegment?: (segmentIndex: number) => void;
 }
 
-export function KeyboardPreview({ state }: KeyboardPreviewProps) {
+export function KeyboardPreview({
+  state,
+  segmentCount,
+  onPaintSegment,
+}: KeyboardPreviewProps) {
   const active =
     state.enabled && state.effect !== "Off" && state.brightness > 0;
   const palette = resolvePreviewPalette(state);
+  const editable = !!onPaintSegment && !!segmentCount && segmentCount > 0;
 
   return (
     <Card className="keyboard-preview-card">
@@ -180,7 +188,7 @@ export function KeyboardPreview({ state }: KeyboardPreviewProps) {
         <div className="keyboard-preview__board">
           {KEYS.map((previewKey) => {
             const color = active
-              ? palette[zoneForKey(previewKey)]
+              ? palette[segmentForKey(previewKey, palette.length)]
               : { r: 72, g: 68, b: 94 };
             const glow = active
               ? Math.max(0.03, (state.brightness / 100) * 0.13)
@@ -195,17 +203,24 @@ export function KeyboardPreview({ state }: KeyboardPreviewProps) {
               "--legend-color": rgbWithAlpha(color, active ? 0.72 : 0.32),
             };
 
+            const onClick = editable
+              ? () => onPaintSegment!(segmentForKey(previewKey, segmentCount!))
+              : undefined;
+
             return (
               <div
                 className={[
                   "keyboard-key",
                   `keyboard-key--${previewKey.align ?? "center"}`,
                   previewKey.compact ? "keyboard-key--compact" : "",
+                  editable ? "keyboard-key--editable" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
                 key={previewKey.id}
+                role={editable ? "button" : undefined}
                 style={style}
+                onClick={onClick}
               >
                 <span className="keyboard-key__label">{previewKey.label}</span>
                 {previewKey.subLabel && (
@@ -223,32 +238,30 @@ export function KeyboardPreview({ state }: KeyboardPreviewProps) {
 }
 
 function resolvePreviewPalette(state: KeyboardState): RgbColor[] {
-  const fallback = Array.from(
-    { length: KEY_COUNT_FOR_ZONE_LAYOUT },
-    () => state.primary_color,
-  );
-
-  if (!effectSupportsZoneColors(state.effect)) {
-    return fallback;
-  }
-
   const zoneColors = state.zone_colors;
-  if (!zoneColors || zoneColors.length !== KEY_COUNT_FOR_ZONE_LAYOUT) {
-    return fallback;
+  if (
+    !effectSupportsZoneColors(state.effect) ||
+    !zoneColors ||
+    zoneColors.length === 0
+  ) {
+    return [state.primary_color];
   }
 
+  // The editor emits a dense palette indexed 0..n-1 (one entry per segment).
+  // Anything else falls back to a single primary color across the board.
+  const count = zoneColors.length;
   const palette: Array<RgbColor | null> = Array.from(
-    { length: KEY_COUNT_FOR_ZONE_LAYOUT },
+    { length: count },
     () => null,
   );
 
   for (const zone of zoneColors) {
     if (
       zone.zone_index < 0 ||
-      zone.zone_index >= KEY_COUNT_FOR_ZONE_LAYOUT ||
+      zone.zone_index >= count ||
       palette[zone.zone_index] !== null
     ) {
-      return fallback;
+      return [state.primary_color];
     }
 
     palette[zone.zone_index] = zone.color;
@@ -257,11 +270,11 @@ function resolvePreviewPalette(state: KeyboardState): RgbColor[] {
   return palette.map((color) => color ?? state.primary_color);
 }
 
-function zoneForKey(previewKey: PreviewKey): number {
+function segmentForKey(previewKey: PreviewKey, segmentCount: number): number {
   const centerX = previewKey.x + previewKey.w / 2;
   return Math.min(
-    KEY_COUNT_FOR_ZONE_LAYOUT - 1,
-    Math.max(0, Math.floor((centerX / BOARD_WIDTH) * KEY_COUNT_FOR_ZONE_LAYOUT)),
+    segmentCount - 1,
+    Math.max(0, Math.floor((centerX / BOARD_WIDTH) * segmentCount)),
   );
 }
 

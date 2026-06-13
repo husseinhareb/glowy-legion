@@ -294,7 +294,7 @@ impl LenovoKeyboardDriver {
                     })
                     .map(|interface| {
                         let reports = interface.lamp_array_reports;
-                        reports.control.is_some() && reports.range_update.is_some()
+                        reports.control.is_some() && reports.multi_update.is_some()
                     })
                     .unwrap_or(false)
             }
@@ -505,25 +505,16 @@ impl LenovoKeyboardDriver {
                     })?;
 
                     let handle = self.opener.open_path(&path)?;
-                    // The keyboard's actual lamp count drives how the four zones
-                    // map onto the physical lamps. Reading it (read-only) is what
-                    // lets a single update cover the whole keyboard instead of
-                    // only the first few lamps.
-                    let lamp_count =
-                        match self.read_lamp_array_attributes(&snapshot, &path, handle.as_ref()) {
-                            Some(attributes) => {
-                                if attributes.lamp_count
-                                    < device_info.capabilities.zone_count as u16
-                                {
-                                    return Err(AppError::UnsupportedDevice(format!(
-                                        "LampArray reports {} lamps, but LegionGlow needs {} zones",
-                                        attributes.lamp_count, device_info.capabilities.zone_count
-                                    )));
-                                }
-                                attributes.lamp_count
-                            }
-                            None => device_info.capabilities.zone_count as u16,
-                        };
+                    // The keyboard's actual lamp count drives the per-lamp
+                    // framebuffer. Reading it (read-only) is what lets the update
+                    // cover every lamp instead of only the first few. If the
+                    // device does not answer, fall back to the capability's
+                    // segment count.
+                    let lamp_count = self
+                        .read_lamp_array_attributes(&snapshot, &path, handle.as_ref())
+                        .map(|attributes| attributes.lamp_count)
+                        .filter(|count| *count > 0)
+                        .unwrap_or(device_info.capabilities.zone_count as u16);
 
                     let reports = build_lamp_array_update_reports(
                         &normalized,
@@ -1308,16 +1299,21 @@ mod tests {
         assert_eq!(feature_reads.load(Ordering::SeqCst), 1);
         assert_eq!(last_path.lock().unwrap().as_deref(), Some("/dev/hidraw1"));
         let sent_reports = sent_reports.lock().unwrap();
-        // LampArray protocol: control report, then one range-update per zone.
-        // The mock attributes report declares 4 lamps, so each of the 4 zones
-        // maps to a single lamp. The safe-test payload is dim blue (0,0,64) at
-        // full brightness; the ignored intensity byte is full-on (255).
-        assert_eq!(sent_reports.len(), 5);
+        // LampArray protocol: control report, then multi-update report(s). The
+        // mock attributes report declares 4 lamps, so all 4 fit in one report.
+        // The safe-test payload is dim blue (0,0,64) at full brightness; the
+        // ignored intensity byte is full-on (255).
+        assert_eq!(sent_reports.len(), 2);
         assert_eq!(sent_reports[0], vec![0x06, 0x00]);
-        assert_eq!(sent_reports[1], vec![0x05, 0x00, 0, 0, 0, 0, 0, 0, 64, 255]);
-        assert_eq!(sent_reports[2], vec![0x05, 0x00, 1, 0, 1, 0, 0, 0, 64, 255]);
-        assert_eq!(sent_reports[3], vec![0x05, 0x00, 2, 0, 2, 0, 0, 0, 64, 255]);
-        assert_eq!(sent_reports[4], vec![0x05, 0x01, 3, 0, 3, 0, 0, 0, 64, 255]);
+        assert_eq!(
+            sent_reports[1],
+            vec![
+                0x04, 4, 0x01, // report id, LampCount=4, UpdateComplete
+                0, 0, 1, 0, 2, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 8 LampId slots (u16)
+                0, 0, 64, 255, 0, 0, 64, 255, 0, 0, 64, 255, 0, 0, 64, 255, // 4 lamps
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 4 padded lamps
+            ]
+        );
 
         let report = driver.diagnostics().expect("diagnostics");
         assert!(report.real_hardware_writes_enabled);

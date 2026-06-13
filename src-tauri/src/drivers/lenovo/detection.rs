@@ -238,9 +238,7 @@ pub fn list_possible_lenovo_hid_devices_from_metadata(
             .map(|device| device.dry_run_protocol_candidate)
             .unwrap_or(false);
         let capabilities = match write_protocol {
-            Some(LenovoWriteProtocol::HidLampArray) => {
-                DeviceCapabilities::lenovo_lamp_array_4_zone_rgb()
-            }
+            Some(LenovoWriteProtocol::HidLampArray) => DeviceCapabilities::lenovo_lamp_array_rgb(),
             Some(LenovoWriteProtocol::IteVendor) => DeviceCapabilities::lenovo_4_zone_rgb(),
             None if dry_run_protocol_candidate => DeviceCapabilities::lenovo_4_zone_rgb(),
             None => DeviceCapabilities::unsupported(),

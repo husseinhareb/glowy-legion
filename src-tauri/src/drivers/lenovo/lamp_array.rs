@@ -6,7 +6,6 @@
 use crate::{
     app::error::AppError,
     domain::{DeviceCapabilities, KeyboardState, LampArrayAttributesSummary, RgbColor},
-    drivers::lenovo::protocol::build_zone_rgb_bytes,
     infrastructure::linux::hidraw::LampArrayReportIds,
 };
 
@@ -14,13 +13,15 @@ use crate::{
 /// 1 (report ID) + 2 (LampCount) + 4*3 (bounding box) + 4 (kind) + 4 (interval).
 const ATTRIBUTES_REPORT_LEN: usize = 23;
 const LAMP_UPDATE_FLAG_UPDATE_COMPLETE: u8 = 0x01;
-const LAMP_ARRAY_ZONE_COUNT: usize = 4;
+/// Lamps addressed by a single LampMultiUpdateReport, fixed by the report
+/// descriptor (8 LampId slots + 8 RGBI tuples).
+const LAMP_MULTI_UPDATE_LAMP_COUNT: usize = 8;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LampArrayUpdateReports {
     pub control: Vec<u8>,
-    /// One LampRangeUpdateReport per zone, in send order. All but the last
-    /// carry LampUpdateComplete=0; the last latches the whole batch.
+    /// One or more LampMultiUpdateReports covering every lamp, in send order.
+    /// All but the last carry LampUpdateComplete=0; the last latches the batch.
     pub updates: Vec<Vec<u8>>,
 }
 
@@ -64,27 +65,22 @@ pub fn parse_lamp_array_attributes_report(
 /// Build the LampArray reports for `state`.
 ///
 /// The keyboard exposes `lamp_count` individually addressable lamps in a single
-/// left-to-right row (lamp 0 is leftmost). The four logical zones map onto these
-/// lamps as contiguous, equal-width blocks, with the rightmost zone absorbing
-/// any remainder when `lamp_count` is not divisible by four. Each zone is sent
-/// as one LampRangeUpdateReport spanning its lamp range; this is what actually
-/// lights the whole keyboard (writing only lamp IDs 0..4 lit just the leftmost
-/// lamps). The firmware honours LampIdEnd, verified on the real LOQ.
+/// left-to-right row (lamp 0 is leftmost), each its own colour segment. The
+/// per-lamp framebuffer (see `resolve_lamp_colors`) is sent as a sequence of
+/// LampMultiUpdateReports, eight lamps at a time, so every lamp can carry a
+/// distinct colour. Only the final report sets LampUpdateComplete, which
+/// latches the whole batch at once.
 pub fn build_lamp_array_update_reports(
     state: &KeyboardState,
-    capabilities: &DeviceCapabilities,
+    _capabilities: &DeviceCapabilities,
     report_ids: &LampArrayReportIds,
     lamp_count: u16,
 ) -> Result<LampArrayUpdateReports, AppError> {
-    if !capabilities.supports_zones || capabilities.zone_count as usize != LAMP_ARRAY_ZONE_COUNT {
+    let lamp_count = lamp_count as usize;
+    if lamp_count == 0 {
         return Err(AppError::UnsupportedDevice(
-            "HID LampArray backend currently supports only 4-zone keyboards".to_string(),
+            "the LampArray reports zero lamps".to_string(),
         ));
-    }
-    if (lamp_count as usize) < LAMP_ARRAY_ZONE_COUNT {
-        return Err(AppError::UnsupportedDevice(format!(
-            "LampArray reports {lamp_count} lamps, fewer than the {LAMP_ARRAY_ZONE_COUNT} zones"
-        )));
     }
 
     let control_report_id = report_ids.control.ok_or_else(|| {
@@ -92,34 +88,28 @@ pub fn build_lamp_array_update_reports(
             "the LampArray interface does not declare a control report".to_string(),
         )
     })?;
-    let range_update_id = report_ids.range_update.ok_or_else(|| {
+    let multi_update_id = report_ids.multi_update.ok_or_else(|| {
         AppError::UnsupportedDevice(
-            "the LampArray interface does not declare a range-update report".to_string(),
+            "the LampArray interface does not declare a multi-update report".to_string(),
         )
     })?;
 
-    let colors = zone_colors_for_state(state);
+    let colors = resolve_lamp_colors(state, lamp_count);
     let intensity = intensity_for_state(state);
 
-    let lamps_per_zone = lamp_count as usize / LAMP_ARRAY_ZONE_COUNT;
-    let mut updates = Vec::with_capacity(LAMP_ARRAY_ZONE_COUNT);
+    let mut updates = Vec::new();
     let mut start = 0usize;
-    for zone in 0..LAMP_ARRAY_ZONE_COUNT {
-        let is_last = zone == LAMP_ARRAY_ZONE_COUNT - 1;
-        let end = if is_last {
-            lamp_count as usize - 1
-        } else {
-            start + lamps_per_zone - 1
-        };
-        updates.push(build_range_update_report(
-            range_update_id,
-            start as u16,
-            end as u16,
-            colors[zone],
+    while start < lamp_count {
+        let end = (start + LAMP_MULTI_UPDATE_LAMP_COUNT).min(lamp_count);
+        let is_last = end == lamp_count;
+        updates.push(build_multi_update_report(
+            multi_update_id,
+            &colors[start..end],
+            start,
             intensity,
             is_last,
         ));
-        start = end + 1;
+        start = end;
     }
 
     Ok(LampArrayUpdateReports {
@@ -132,53 +122,97 @@ fn build_control_report(report_id: u8, autonomous_mode: bool) -> Vec<u8> {
     vec![report_id, u8::from(autonomous_mode)]
 }
 
-/// LampRangeUpdateReport (usage 0x60): report id, LampUpdateFlags(u8),
-/// LampIdStart(u16 LE), LampIdEnd(u16 LE), then one RGBI tuple applied to every
-/// lamp in `[start, end]`.
-fn build_range_update_report(
+/// LampMultiUpdateReport (usage 0x50): report id, LampCount(u8), flags(u8),
+/// then a fixed 8 LampId (u16 LE) slots and 8 interleaved RGBI tuples. Lamps
+/// beyond `batch` are zero-padded; `start` is the lamp id of `batch[0]`.
+fn build_multi_update_report(
     report_id: u8,
-    start: u16,
-    end: u16,
-    color: RgbColor,
+    batch: &[RgbColor],
+    start: usize,
     intensity: u8,
     update_complete: bool,
 ) -> Vec<u8> {
+    debug_assert!(batch.len() <= LAMP_MULTI_UPDATE_LAMP_COUNT);
     let flags = if update_complete {
         LAMP_UPDATE_FLAG_UPDATE_COMPLETE
     } else {
         0
     };
-    let mut report = Vec::with_capacity(10);
+    let mut report = Vec::with_capacity(51);
     report.push(report_id);
+    report.push(batch.len() as u8);
     report.push(flags);
-    report.extend_from_slice(&start.to_le_bytes());
-    report.extend_from_slice(&end.to_le_bytes());
-    report.push(color.r);
-    report.push(color.g);
-    report.push(color.b);
-    report.push(intensity);
+
+    for slot in 0..LAMP_MULTI_UPDATE_LAMP_COUNT {
+        let lamp_id = if slot < batch.len() {
+            (start + slot) as u16
+        } else {
+            0
+        };
+        report.extend_from_slice(&lamp_id.to_le_bytes());
+    }
+
+    for slot in 0..LAMP_MULTI_UPDATE_LAMP_COUNT {
+        match batch.get(slot) {
+            Some(color) => {
+                report.push(color.r);
+                report.push(color.g);
+                report.push(color.b);
+                report.push(intensity);
+            }
+            None => report.extend_from_slice(&[0, 0, 0, 0]),
+        }
+    }
+
     report
 }
 
-/// Resolve the four zone colors, scaled by brightness.
+/// Resolve a per-lamp colour framebuffer of length `lamp_count`, scaled by
+/// brightness.
+///
+/// Each lamp defaults to the primary colour. For zone-aware effects, any
+/// `zone_colors` entry whose `zone_index` is a valid lamp id overrides that
+/// lamp — with `zone_count == lamp_count` this is a direct per-lamp palette.
+/// Off / disabled / zero-brightness states resolve to all black.
 ///
 /// The LOQ firmware ignores the per-lamp Intensity channel (any non-zero value
-/// reads as fully on), verified on real hardware. Brightness is therefore
-/// applied by scaling the RGB channels themselves: 50% brightness halves every
-/// channel, which the firmware does honour.
-fn zone_colors_for_state(state: &KeyboardState) -> [RgbColor; LAMP_ARRAY_ZONE_COUNT] {
-    let bytes = build_zone_rgb_bytes(state);
+/// reads as fully on), verified on real hardware, so brightness is applied by
+/// scaling the RGB channels themselves, which the firmware does honour.
+fn resolve_lamp_colors(state: &KeyboardState, lamp_count: usize) -> Vec<RgbColor> {
+    let black = RgbColor::new(0, 0, 0);
+    if state.effect == crate::domain::LightingEffect::Off
+        || !state.enabled
+        || state.brightness == 0
+    {
+        return vec![black; lamp_count];
+    }
+
+    let mut colors = vec![state.primary_color; lamp_count];
+
+    let zone_aware = matches!(
+        state.effect,
+        crate::domain::LightingEffect::Static | crate::domain::LightingEffect::Breathing
+    );
+    if zone_aware {
+        if let Some(zones) = &state.zone_colors {
+            for zone in zones {
+                let lamp = zone.zone_index as usize;
+                if lamp < lamp_count {
+                    colors[lamp] = zone.color;
+                }
+            }
+        }
+    }
+
     let scale = |value: u8| ((value as u16 * state.brightness as u16) / 100) as u8;
-    [
-        RgbColor::new(scale(bytes[0]), scale(bytes[1]), scale(bytes[2])),
-        RgbColor::new(scale(bytes[3]), scale(bytes[4]), scale(bytes[5])),
-        RgbColor::new(scale(bytes[6]), scale(bytes[7]), scale(bytes[8])),
-        RgbColor::new(scale(bytes[9]), scale(bytes[10]), scale(bytes[11])),
-    ]
+    colors
+        .into_iter()
+        .map(|c| RgbColor::new(scale(c.r), scale(c.g), scale(c.b)))
+        .collect()
 }
 
 /// The Intensity byte the firmware ignores: full on when lit, zero when off.
-/// Brightness is carried by the scaled RGB channels (see `zone_colors_for_state`).
+/// Brightness is carried by the scaled RGB channels (see `resolve_lamp_colors`).
 fn intensity_for_state(state: &KeyboardState) -> u8 {
     if !state.enabled || state.brightness == 0 {
         0
@@ -206,7 +240,10 @@ fn lamp_array_kind_label(kind: u32) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_lamp_array_update_reports, parse_lamp_array_attributes_report};
+    use super::{
+        build_lamp_array_update_reports, parse_lamp_array_attributes_report,
+        LAMP_MULTI_UPDATE_LAMP_COUNT,
+    };
     use crate::{
         app::error::AppError,
         domain::{DeviceCapabilities, KeyboardState, RgbColor, ZoneColor},
@@ -252,14 +289,18 @@ mod tests {
 
     fn report_ids() -> LampArrayReportIds {
         LampArrayReportIds {
-            range_update: Some(0x05),
+            multi_update: Some(0x04),
             control: Some(0x06),
             ..LampArrayReportIds::default()
         }
     }
 
+    // Colors occupy bytes [19..51] of a multi-update report: 8 interleaved RGBI
+    // tuples after the report id, LampCount, flags, and 8 LampId (u16) slots.
+    const COLORS_AT: usize = 19;
+
     #[test]
-    fn builds_range_updates_for_uniform_static_color() {
+    fn builds_multi_update_for_uniform_static_color() {
         let mut state = KeyboardState::default_static();
         state.secondary_color = None;
         state.primary_color = RgbColor::new(10, 20, 30);
@@ -269,60 +310,69 @@ mod tests {
 
         let reports = build_lamp_array_update_reports(
             &state,
-            &DeviceCapabilities::lenovo_lamp_array_4_zone_rgb(),
+            &DeviceCapabilities::lenovo_lamp_array_rgb(),
             &report_ids(),
             24,
         )
         .expect("reports");
 
         assert_eq!(reports.control, vec![0x06, 0x00]);
-        // 24 lamps / 4 zones = 6 lamps per zone, contiguous left-to-right.
-        // Each report: id, flags, startLo, startHi, endLo, endHi, R, G, B, I.
-        assert_eq!(
-            reports.updates,
-            vec![
-                vec![0x05, 0x00, 0, 0, 5, 0, 5, 10, 15, 255],
-                vec![0x05, 0x00, 6, 0, 11, 0, 5, 10, 15, 255],
-                vec![0x05, 0x00, 12, 0, 17, 0, 5, 10, 15, 255],
-                vec![0x05, 0x01, 18, 0, 23, 0, 5, 10, 15, 255],
-            ]
-        );
+        // 24 lamps -> 3 multi-update reports of 8 lamps each.
+        assert_eq!(reports.updates.len(), 3);
+        for update in &reports.updates {
+            assert_eq!(update.len(), 51);
+            assert_eq!(update[0], 0x04); // report id
+            assert_eq!(update[1], 8); // LampCount
+        }
+        // First two reports do not latch; the last does.
+        assert_eq!(reports.updates[0][2], 0x00);
+        assert_eq!(reports.updates[2][2], 0x01);
+        // Lamp ids of the second report are 8..15 (u16 LE).
+        assert_eq!(&reports.updates[1][3..7], &[8, 0, 9, 0]);
+        // Every lamp carries the scaled uniform color with full intensity.
+        let mut expected = Vec::new();
+        for _ in 0..LAMP_MULTI_UPDATE_LAMP_COUNT {
+            expected.extend_from_slice(&[5, 10, 15, 255]);
+        }
+        for update in &reports.updates {
+            assert_eq!(&update[COLORS_AT..51], expected.as_slice());
+        }
     }
 
     #[test]
-    fn builds_range_updates_for_distinct_zone_colors() {
+    fn builds_multi_update_for_per_lamp_palette() {
         let mut state = KeyboardState::default_static();
         state.secondary_color = None;
-        state.brightness = 100; // intensity = 255
-        state.zone_colors = Some(vec![
-            ZoneColor::new(0, RgbColor::new(1, 2, 3)),
-            ZoneColor::new(1, RgbColor::new(4, 5, 6)),
-            ZoneColor::new(2, RgbColor::new(7, 8, 9)),
-            ZoneColor::new(3, RgbColor::new(10, 11, 12)),
-        ]);
+        state.brightness = 100; // no scaling
+        state.zone_colors = Some(
+            (0u8..8)
+                .map(|i| ZoneColor::new(i, RgbColor::new(i * 10, i * 10 + 1, i * 10 + 2)))
+                .collect(),
+        );
 
         let reports = build_lamp_array_update_reports(
             &state,
-            &DeviceCapabilities::lenovo_lamp_array_4_zone_rgb(),
+            &DeviceCapabilities::lenovo_lamp_array_rgb(),
             &report_ids(),
-            24,
+            8,
         )
         .expect("reports");
 
-        assert_eq!(
-            reports.updates,
-            vec![
-                vec![0x05, 0x00, 0, 0, 5, 0, 1, 2, 3, 255],
-                vec![0x05, 0x00, 6, 0, 11, 0, 4, 5, 6, 255],
-                vec![0x05, 0x00, 12, 0, 17, 0, 7, 8, 9, 255],
-                vec![0x05, 0x01, 18, 0, 23, 0, 10, 11, 12, 255],
-            ]
-        );
+        assert_eq!(reports.updates.len(), 1);
+        let update = &reports.updates[0];
+        assert_eq!(update[1], 8); // LampCount
+        assert_eq!(update[2], 0x01); // single report latches
+        let mut expected = Vec::new();
+        for i in 0u8..8 {
+            expected.extend_from_slice(&[i * 10, i * 10 + 1, i * 10 + 2, 255]);
+        }
+        assert_eq!(&update[COLORS_AT..51], expected.as_slice());
     }
 
     #[test]
-    fn last_zone_absorbs_remainder_lamps() {
-        // 22 lamps / 4 zones = 5 per zone, last zone takes the extra 2.
+    fn partial_final_batch_is_zero_padded() {
+        // 20 lamps -> batches of 8, 8, 4. The last report addresses 4 lamps and
+        // zero-pads the remaining slots.
         let mut state = KeyboardState::default_static();
         state.secondary_color = None;
         state.primary_color = RgbColor::new(1, 1, 1);
@@ -330,46 +380,47 @@ mod tests {
 
         let reports = build_lamp_array_update_reports(
             &state,
-            &DeviceCapabilities::lenovo_lamp_array_4_zone_rgb(),
+            &DeviceCapabilities::lenovo_lamp_array_rgb(),
             &report_ids(),
-            22,
+            20,
         )
         .expect("reports");
 
-        let ranges: Vec<(u8, u8)> = reports
-            .updates
-            .iter()
-            .map(|r| (r[2], r[4])) // startLo, endLo
-            .collect();
-        assert_eq!(ranges, vec![(0, 4), (5, 9), (10, 14), (15, 21)]);
-        assert_eq!(reports.updates.last().unwrap()[1], 0x01);
+        assert_eq!(reports.updates.len(), 3);
+        let last = reports.updates.last().unwrap();
+        assert_eq!(last[1], 4); // LampCount = 4 valid lamps
+        assert_eq!(last[2], 0x01); // latches
+        assert_eq!(last.len(), 51); // still a fixed-size report
+        assert_eq!(&last[3..7], &[16, 0, 17, 0]); // first padded lamp ids
+        assert_eq!(&last[11..19], &[0; 8]); // padded lamp id slots are zero
+        // Padded color tuples (slots 4..8) are zero.
+        assert_eq!(&last[COLORS_AT + 16..51], &[0; 16]);
     }
 
     #[test]
-    fn off_builds_black_range_updates() {
+    fn off_builds_black_multi_update() {
         let reports = build_lamp_array_update_reports(
             &KeyboardState::off(),
-            &DeviceCapabilities::lenovo_lamp_array_4_zone_rgb(),
+            &DeviceCapabilities::lenovo_lamp_array_rgb(),
             &report_ids(),
             24,
         )
         .expect("reports");
 
-        assert_eq!(reports.updates.len(), 4);
-        // Off = black at intensity 0 for every zone.
+        assert_eq!(reports.updates.len(), 3);
         for update in &reports.updates {
-            assert_eq!(&update[6..10], &[0, 0, 0, 0]);
+            assert_eq!(&update[COLORS_AT..51], &[0u8; 32]); // black, intensity 0
         }
-        assert_eq!(reports.updates.last().unwrap()[1], 0x01);
+        assert_eq!(reports.updates.last().unwrap()[2], 0x01);
     }
 
     #[test]
-    fn rejects_lamp_count_below_zone_count() {
+    fn rejects_zero_lamp_count() {
         let error = build_lamp_array_update_reports(
             &KeyboardState::default_static(),
-            &DeviceCapabilities::lenovo_lamp_array_4_zone_rgb(),
+            &DeviceCapabilities::lenovo_lamp_array_rgb(),
             &report_ids(),
-            3,
+            0,
         )
         .expect_err("must reject");
         assert!(matches!(error, AppError::UnsupportedDevice(_)));

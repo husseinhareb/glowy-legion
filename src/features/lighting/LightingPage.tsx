@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { DeviceInfo } from "../../domain/device";
 import {
   createDefaultKeyboardState,
+  createDefaultZoneColors,
   EFFECT_DIRECTIONS,
   effectSupportsZoneColors,
   effectUsesDirection,
@@ -10,18 +11,21 @@ import {
   isDirectionSupportedForEffect,
   type EffectDirection,
   type KeyboardState,
+  type RgbColor,
+  type ZoneColor,
 } from "../../domain/lighting";
 import { Button } from "../../shared/components/Button";
 import { Card } from "../../shared/components/Card";
 import { Notice } from "../../shared/components/Notice";
+import { hsvToRgb } from "../../shared/utils/color";
 import { canApplyState } from "../../shared/utils/validation";
 import { BrightnessSlider } from "./BrightnessSlider";
 import { ColorPicker } from "./ColorPicker";
 import { DirectionSelector } from "./DirectionSelector";
 import { EffectSelector } from "./EffectSelector";
 import { KeyboardPreview } from "./KeyboardPreview";
+import { SegmentColorEditor } from "./SegmentColorEditor";
 import { SpeedSlider } from "./SpeedSlider";
-import { ZoneColorEditor } from "./ZoneColorEditor";
 
 interface LightingPageProps {
   device: DeviceInfo | null;
@@ -41,6 +45,9 @@ export function LightingPage({
   const [draft, setDraft] = useState<KeyboardState>(
     keyboardState ?? createDefaultKeyboardState(),
   );
+  const [brushColor, setBrushColor] = useState<RgbColor>(
+    (keyboardState ?? createDefaultKeyboardState()).primary_color,
+  );
 
   useEffect(() => {
     if (keyboardState) {
@@ -58,10 +65,47 @@ export function LightingPage({
   const disabledDirections: EffectDirection[] = EFFECT_DIRECTIONS.filter(
     (direction) => !isDirectionSupportedForEffect(draft.effect, direction),
   );
+  const segmentCount = capabilities?.zone_count ?? 0;
   const showZones =
     !!capabilities?.supports_zones &&
-    capabilities.zone_count === 4 &&
+    segmentCount > 1 &&
     effectSupportsZoneColors(draft.effect);
+  const perSegment = draft.zone_colors !== null;
+  const canPaint = showZones && !isOff && !loading;
+
+  const setZoneColors = (zone_colors: ZoneColor[] | null) =>
+    setDraft((current) => ({ ...current, zone_colors }));
+
+  const paintSegment = (index: number) => {
+    const base =
+      draft.zone_colors ??
+      createDefaultZoneColors(segmentCount, draft.primary_color);
+    setZoneColors(
+      base.map((segment) =>
+        segment.zone_index === index
+          ? { ...segment, color: { ...brushColor } }
+          : segment,
+      ),
+    );
+  };
+
+  const fillAll = () =>
+    setZoneColors(
+      Array.from({ length: segmentCount }, (_unused, index) => ({
+        zone_index: index,
+        color: { ...brushColor },
+      })),
+    );
+
+  const fillRainbow = () => {
+    const last = Math.max(1, segmentCount - 1);
+    setZoneColors(
+      Array.from({ length: segmentCount }, (_unused, index) => ({
+        zone_index: index,
+        color: hsvToRgb(index / last, 1, 1),
+      })),
+    );
+  };
 
   return (
     <section className="page-stack">
@@ -102,7 +146,11 @@ export function LightingPage({
         </Notice>
       )}
 
-      <KeyboardPreview state={draft} />
+      <KeyboardPreview
+        state={draft}
+        segmentCount={segmentCount}
+        onPaintSegment={canPaint ? paintSegment : undefined}
+      />
 
       <Card>
         <div className="control-grid">
@@ -166,15 +214,22 @@ export function LightingPage({
             }
           />
         </div>
-        {showZones && capabilities && (
-          <ZoneColorEditor
+        {showZones && (
+          <SegmentColorEditor
             disabled={loading || isOff}
-            primaryColor={draft.primary_color}
-            zoneColors={draft.zone_colors}
-            zoneCount={capabilities.zone_count}
-            onChange={(zone_colors) =>
-              setDraft((current) => ({ ...current, zone_colors }))
+            segmentCount={segmentCount}
+            perSegment={perSegment}
+            brushColor={brushColor}
+            onBrushChange={setBrushColor}
+            onTogglePerSegment={(enabled) =>
+              setZoneColors(
+                enabled
+                  ? createDefaultZoneColors(segmentCount, draft.primary_color)
+                  : null,
+              )
             }
+            onFillAll={fillAll}
+            onRainbow={fillRainbow}
           />
         )}
       </Card>

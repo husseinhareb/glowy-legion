@@ -44,7 +44,11 @@ impl DeviceCapabilities {
         }
     }
 
-    pub fn lenovo_lamp_array_4_zone_rgb() -> Self {
+    /// The real LOQ LampArray exposes 24 individually addressable lamps in a
+    /// single left-to-right row, so each lamp is treated as its own colour
+    /// segment (zone). Hardware effects (breathing/wave/rainbow) are not
+    /// available through the LampArray interface and stay false.
+    pub fn lenovo_lamp_array_rgb() -> Self {
         Self {
             supports_static: true,
             supports_breathing: false,
@@ -57,7 +61,7 @@ impl DeviceCapabilities {
             supports_primary_color: true,
             supports_secondary_color: false,
             supports_zones: true,
-            zone_count: 4,
+            zone_count: 24,
             supports_per_key_rgb: false,
         }
     }
