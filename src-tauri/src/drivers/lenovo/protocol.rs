@@ -51,17 +51,20 @@ pub fn build_feature_report(
     Ok(payload)
 }
 
-/// Lowest-risk payload for verifying real hardware access: a static, very dim
-/// blue at the minimum hardware brightness level. Used by the "safe first
-/// write" flow before any animations are attempted.
+/// Lowest-risk payload for verifying real hardware access: a static, dim blue.
+/// Used by the "safe first write" flow before any animations are attempted.
+///
+/// The dimness comes from the low blue channel rather than a low brightness
+/// value: on the LampArray firmware brightness is applied by scaling the RGB
+/// channels, so a very low brightness would scale this colour to black and
+/// leave nothing visible to confirm the write.
 pub fn build_safe_test_state() -> KeyboardState {
     KeyboardState {
         effect: LightingEffect::Static,
         // Dim blue is preferred over full brightness for the first real write.
-        primary_color: RgbColor::new(0, 0, 32),
+        primary_color: RgbColor::new(0, 0, 64),
         secondary_color: None,
-        // Maps to hardware brightness level 1 (the minimum non-off level).
-        brightness: 1,
+        brightness: 100,
         speed: 0,
         direction: EffectDirection::LeftToRight,
         enabled: true,
@@ -346,8 +349,12 @@ mod tests {
         let state = build_safe_test_state();
 
         assert_eq!(state.effect, LightingEffect::Static);
-        assert_eq!(state.primary_color, RgbColor::new(0, 0, 32));
-        assert_eq!(map_brightness_0_100_to_hardware(state.brightness), 1);
+        assert_eq!(state.primary_color, RgbColor::new(0, 0, 64));
+        assert!(state.enabled);
+        // Dimness comes from the low blue channel, not the brightness value.
+        assert_eq!(state.primary_color.r, 0);
+        assert_eq!(state.primary_color.g, 0);
+        assert!(state.primary_color.b < 128);
     }
 
     #[test]

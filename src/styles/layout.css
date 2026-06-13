@@ -141,7 +141,7 @@
 .page-stack {
   display: grid;
   gap: 1.25rem;
-  width: min(1200px, 100%);
+  width: 100%;
 }
 
 .page-heading {

@@ -1310,14 +1310,14 @@ mod tests {
         let sent_reports = sent_reports.lock().unwrap();
         // LampArray protocol: control report, then one range-update per zone.
         // The mock attributes report declares 4 lamps, so each of the 4 zones
-        // maps to a single lamp. The safe-test payload is dim blue (0,0,32) at
-        // hardware intensity 2 (brightness 1 → 1 * 255 / 100).
+        // maps to a single lamp. The safe-test payload is dim blue (0,0,64) at
+        // full brightness; the ignored intensity byte is full-on (255).
         assert_eq!(sent_reports.len(), 5);
         assert_eq!(sent_reports[0], vec![0x06, 0x00]);
-        assert_eq!(sent_reports[1], vec![0x05, 0x00, 0, 0, 0, 0, 0, 0, 32, 2]);
-        assert_eq!(sent_reports[2], vec![0x05, 0x00, 1, 0, 1, 0, 0, 0, 32, 2]);
-        assert_eq!(sent_reports[3], vec![0x05, 0x00, 2, 0, 2, 0, 0, 0, 32, 2]);
-        assert_eq!(sent_reports[4], vec![0x05, 0x01, 3, 0, 3, 0, 0, 0, 32, 2]);
+        assert_eq!(sent_reports[1], vec![0x05, 0x00, 0, 0, 0, 0, 0, 0, 64, 255]);
+        assert_eq!(sent_reports[2], vec![0x05, 0x00, 1, 0, 1, 0, 0, 0, 64, 255]);
+        assert_eq!(sent_reports[3], vec![0x05, 0x00, 2, 0, 2, 0, 0, 0, 64, 255]);
+        assert_eq!(sent_reports[4], vec![0x05, 0x01, 3, 0, 3, 0, 0, 0, 64, 255]);
 
         let report = driver.diagnostics().expect("diagnostics");
         assert!(report.real_hardware_writes_enabled);

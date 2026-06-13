@@ -160,21 +160,30 @@ fn build_range_update_report(
     report
 }
 
+/// Resolve the four zone colors, scaled by brightness.
+///
+/// The LOQ firmware ignores the per-lamp Intensity channel (any non-zero value
+/// reads as fully on), verified on real hardware. Brightness is therefore
+/// applied by scaling the RGB channels themselves: 50% brightness halves every
+/// channel, which the firmware does honour.
 fn zone_colors_for_state(state: &KeyboardState) -> [RgbColor; LAMP_ARRAY_ZONE_COUNT] {
     let bytes = build_zone_rgb_bytes(state);
+    let scale = |value: u8| ((value as u16 * state.brightness as u16) / 100) as u8;
     [
-        RgbColor::new(bytes[0], bytes[1], bytes[2]),
-        RgbColor::new(bytes[3], bytes[4], bytes[5]),
-        RgbColor::new(bytes[6], bytes[7], bytes[8]),
-        RgbColor::new(bytes[9], bytes[10], bytes[11]),
+        RgbColor::new(scale(bytes[0]), scale(bytes[1]), scale(bytes[2])),
+        RgbColor::new(scale(bytes[3]), scale(bytes[4]), scale(bytes[5])),
+        RgbColor::new(scale(bytes[6]), scale(bytes[7]), scale(bytes[8])),
+        RgbColor::new(scale(bytes[9]), scale(bytes[10]), scale(bytes[11])),
     ]
 }
 
+/// The Intensity byte the firmware ignores: full on when lit, zero when off.
+/// Brightness is carried by the scaled RGB channels (see `zone_colors_for_state`).
 fn intensity_for_state(state: &KeyboardState) -> u8 {
     if !state.enabled || state.brightness == 0 {
         0
     } else {
-        ((state.brightness as u16 * u8::MAX as u16) / 100) as u8
+        u8::MAX
     }
 }
 
@@ -254,7 +263,9 @@ mod tests {
         let mut state = KeyboardState::default_static();
         state.secondary_color = None;
         state.primary_color = RgbColor::new(10, 20, 30);
-        state.brightness = 50; // intensity = 50 * 255 / 100 = 127
+        // Brightness scales the RGB channels (the firmware ignores intensity):
+        // 50% -> 5, 10, 15. The intensity byte is full-on (255) when lit.
+        state.brightness = 50;
 
         let reports = build_lamp_array_update_reports(
             &state,
@@ -270,10 +281,10 @@ mod tests {
         assert_eq!(
             reports.updates,
             vec![
-                vec![0x05, 0x00, 0, 0, 5, 0, 10, 20, 30, 127],
-                vec![0x05, 0x00, 6, 0, 11, 0, 10, 20, 30, 127],
-                vec![0x05, 0x00, 12, 0, 17, 0, 10, 20, 30, 127],
-                vec![0x05, 0x01, 18, 0, 23, 0, 10, 20, 30, 127],
+                vec![0x05, 0x00, 0, 0, 5, 0, 5, 10, 15, 255],
+                vec![0x05, 0x00, 6, 0, 11, 0, 5, 10, 15, 255],
+                vec![0x05, 0x00, 12, 0, 17, 0, 5, 10, 15, 255],
+                vec![0x05, 0x01, 18, 0, 23, 0, 5, 10, 15, 255],
             ]
         );
     }
