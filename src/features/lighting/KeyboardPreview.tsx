@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import {
   effectSupportsZoneColors,
@@ -13,7 +13,7 @@ const BOARD_HEIGHT = 474;
 
 interface PreviewKey {
   id: string;
-  label: string;
+  label: ReactNode;
   subLabel?: string;
   x: number;
   y: number;
@@ -31,7 +31,7 @@ type KeyStyle = CSSProperties & {
 
 const key = (
   id: string,
-  label: string,
+  label: ReactNode,
   x: number,
   y: number,
   w = 68,
@@ -50,8 +50,8 @@ const Q_Y = 135;
 const A_Y = 210;
 const Z_Y = 285;
 const MOD_Y = 360;
-// Arrow cluster sits half a key lower than the bottom row, like the real deck.
-const ARROW_Y = MOD_Y + 34;
+// Arrow cluster drops down slightly from the main deck
+const ARROW_Y = MOD_Y + 14;
 const KEY_W = 68;
 const KEY_H = 68;
 const GAP = 7;
@@ -81,6 +81,14 @@ const FN_ROW: Array<[id: string, label: string, subLabel?: string]> = [
   ["home", "Home", "Play"],
   ["end", "End"],
 ];
+
+function WindowsLogo() {
+  return (
+    <svg width="1.1em" height="1.1em" viewBox="0 0 16 16" fill="currentColor" style={{ verticalAlign: "middle" }}>
+      <path d="M0 0h7.2v7.2H0zM8.8 0H16v7.2H8.8zM0 8.8h7.2V16H0zM8.8 8.8H16V16H8.8z" />
+    </svg>
+  );
+}
 
 const KEYS: PreviewKey[] = [
   ...FN_ROW.map(([id, label, subLabel], index) =>
@@ -136,7 +144,8 @@ const KEYS: PreviewKey[] = [
   key("comma", "<", 702, Z_Y, KEY_W, KEY_H, ","),
   key("period", ">", 777, Z_Y, KEY_W, KEY_H, "."),
   key("slash", "?", 852, Z_Y, KEY_W, KEY_H, "/"),
-  key("shift-right", "Shift", 927, Z_Y, 203, KEY_H, undefined, "right"),
+  key("shift-right", "Shift", 927, Z_Y, 138, KEY_H, undefined, "right"),
+  key("arrow-up", "↑", 1072, Z_Y + 14, KEY_W, KEY_H, undefined, "center"),
   key("numpad1", "1", NP_X[0], Z_Y, KEY_W, KEY_H, "End"),
   key("numpad2", "2", NP_X[1], Z_Y, KEY_W, KEY_H, "↓"),
   key("numpad3", "3", NP_X[2], Z_Y, KEY_W, KEY_H, "PgDn"),
@@ -144,18 +153,16 @@ const KEYS: PreviewKey[] = [
 
   key("ctrl-left", "Ctrl", MARGIN, MOD_Y, 80, KEY_H),
   key("fn", "Fn", 99, MOD_Y, 72, KEY_H),
-  key("meta", "⊞", 178, MOD_Y, 72, KEY_H, undefined, "center"),
+  key("meta", <WindowsLogo />, 178, MOD_Y, 72, KEY_H, undefined, "center"),
   key("alt-left", "Alt", 257, MOD_Y, 72, KEY_H),
-  key("space", "☼        ☼", 336, MOD_Y, 421, KEY_H, undefined, "center"),
-  key("alt-right", "Alt", 764, MOD_Y, 72, KEY_H),
-  key("ctrl-right", "Ctrl", 843, MOD_Y, 72, KEY_H),
-  key("numpad0", "0", NP_X[0], MOD_Y, 143, KEY_H, "Ins"),
+  key("space", "", 343, MOD_Y, 489, KEY_H, undefined, "center"),
+  key("alt-right", "Alt", 839, MOD_Y, 72, KEY_H),
+  key("ctrl-right", "Ctrl", 918, MOD_Y, 72, KEY_H),
+  key("arrow-left", "←", 997, ARROW_Y, KEY_W, KEY_H, undefined, "center"),
+  key("arrow-down", "↓", 1072, ARROW_Y, KEY_W, KEY_H, undefined, "center"),
+  key("arrow-right", "→", 1147, ARROW_Y, KEY_W, KEY_H, undefined, "center"),
+  key("numpad0", "0", NP_X[1], MOD_Y, KEY_W, KEY_H, "Ins"),
   key("numpad-decimal", ".", NP_X[2], MOD_Y, KEY_W, KEY_H, "Del"),
-
-  key("arrow-left", "←", 922, ARROW_Y, KEY_W, KEY_H, undefined, "center"),
-  key("arrow-up", "↑", 997, ARROW_Y, KEY_W, 31, undefined, "center", true),
-  key("arrow-down", "↓", 997, ARROW_Y + 37, KEY_W, 31, undefined, "center", true),
-  key("arrow-right", "→", 1072, ARROW_Y, KEY_W, KEY_H, undefined, "center"),
 ];
 
 interface KeyboardPreviewProps {
